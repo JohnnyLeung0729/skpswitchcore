@@ -108,6 +108,11 @@ class EveusbShell(eveusb.EventHandler):
 	intro = product + '\nType help or ? to list commands'
 	prompt = 'usb>'
 
+	temp_devname = []
+	devlst = []
+
+	waitflag = True
+
 	def __init__(self):
 
 		eveusb.EventHandler.__init__(self)
@@ -169,6 +174,8 @@ class EveusbShell(eveusb.EventHandler):
 	def onMessage(self, msg, incoming):
 		# if self.verbose:
 		print("{0} {1}".format("IN" if incoming else "OUT", msg))
+		if incoming and msg=="plugged_eol":
+			self.waitflag = False
 
 	def onVersion(self, version):
 		print("version '{0}'".format(version))
@@ -219,7 +226,11 @@ class EveusbShell(eveusb.EventHandler):
 	def onServerDevicesEnumerated(self, host):
 		if not server_ports[host]: # empty list of devices
 			del server_ports[host]
-	
+
+	def zip_dev_dict(self):
+		return dict(zip(self.temp_devname,self.devlst))
+
+	# ls local get all Local Device info list
 	def onLocalDeviceInfo(self, devname, info):
 		print("local {0}, bcdUSB {1:#04x}, "
 			"class {2:#02x}, subclass {3:#02x}, protocol {4:#02x}, "
@@ -236,6 +247,8 @@ class EveusbShell(eveusb.EventHandler):
 			info.product, info.manufacturer, info.serial,
 
 			info.NumConfigurations))
+		self.temp_devname.append(devname)
+		self.devlst.append(info)
 
 	def onLocalAddedRemoved(self, devname, maxchild, name, added):
 		action = 'plugged' if added else 'unplugged'
@@ -305,15 +318,16 @@ class EveusbShell(eveusb.EventHandler):
 	def schedule_wait(self):
 		"schedules emptyline() execution"
 		# print("self.cmdqueue.append(schedule_wait)")
-		print("wait bjzs dev")
+		return
 
 	def wait(self, seconds):
 		"seconds is float, infinite if None"
 
-		ret = None
+		self.waitflag = True	# init waitflag, start lock POLLIN
+		ret = None    #Don`t use to this codeblock
 		timeout = None if seconds is None else 1000*seconds # milliseconds, None -> infinite
 
-		while True:
+		while self.waitflag:
 			for fd, revent in self.poll.poll(timeout):
 
 				if revent & select.POLLIN: # file descriptor is also ready on EOF
@@ -506,6 +520,10 @@ class EveusbShell(eveusb.EventHandler):
 		assert not lst
 		return self.ctl.localShare(dev)
 
+	def do_share2(self,_ipstr,_portstr,_devnamestr):
+		dev = eveusb.Device(_ipstr,_portstr,_devnamestr)
+		return self.ctl.localShare(dev)
+
 	def help_share(self):
 		print("share [reverse_host:]tcp_port devname [nickname encrypt compress password] or share <device>\n"
 		      "shares local USB port on given tcp_port if reverse_host is empty or "
@@ -526,6 +544,10 @@ class EveusbShell(eveusb.EventHandler):
 		else:
 			print("invalid device: {0}".format(arg))
 			return self.stop_on_error
+
+	def do_unshareto(self,localip,localport,localdevname):
+		dev = eveusb.Device(localip,localport,localdevname)
+		return self.ctl.localUnshare(dev)
 
 	def help_unshare(self):
 		print("unshare <device> | all\tunshare local USB port or all ports")
@@ -818,6 +840,8 @@ def mymain():
 	sh = EveusbShell()
 	sh.do_ls("local")
 	sh.do_wait(2)
+	testdict = dict(zip(sh.temp_devname,sh.devlst))
+	print(testdict.keys())
 	
 
 try:
