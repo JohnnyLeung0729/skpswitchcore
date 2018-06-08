@@ -1,7 +1,6 @@
 import switchcore
 import uuid
 import requests
-import struct
 
 # Get Rispi mac address uuid
 def get_mac_address():
