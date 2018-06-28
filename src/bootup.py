@@ -58,7 +58,13 @@ if __name__ == '__main__':
     sh.do_ls("local")
     diclst = sh.zip_dev_dict()
     print("dict len size is:"+str(len(diclst)))
-    sh.do_share2("114.67.47.37",9417,"1-1.3")
+
+    for k,v in diclst.items():
+        print(k)
+        print(v)
+
+    # print(diclst.keys())
+    # sh.do_share2("114.67.47.37",9417,"1-1.3")
 
     print('is over!')
 

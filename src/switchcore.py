@@ -248,7 +248,9 @@ class EveusbShell(eveusb.EventHandler):
 
 			info.NumConfigurations))
 		self.temp_devname.append(devname)
-		self.devlst.append(info)
+		tss=str(info.product).replace(' ','')+" "+str(info.manufacturer)+" "+str(info.MaxPacketSize)
+		self.devlst.append(tss)
+		# self.devlst.append(info)   # can`t load info at this def out
 
 	def onLocalAddedRemoved(self, devname, maxchild, name, added):
 		action = 'plugged' if added else 'unplugged'
@@ -844,7 +846,7 @@ def mymain():
 	print(testdict.keys())
 	
 
-try:
-	mymain()
-except KeyboardInterrupt:
-	sys.exit(1)
+# try:
+# 	mymain()
+# except KeyboardInterrupt:
+# 	sys.exit(1)
