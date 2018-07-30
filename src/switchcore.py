@@ -22,6 +22,7 @@ opt_verbose_help = 'verbose mode (print commented lines, etc.)'
 servers = [] # host,
 server_ports = {} # host : [dev, ...]
 shared_ports = [] # dev,
+shared_ports_msg = [] # dev, msg name
 remote_ports = {} # dev : connected
 loglevels = [] # do not use directly, call get_loglevels()
 
@@ -42,7 +43,7 @@ def get_suffixes(variants, prefix, text_idx):
 			suffix = s[text_idx:]
 			if suffix:
 				lst.append(suffix)
-
+	# print(lst)
 	return lst
 
 def split_hub_port(devname):
@@ -176,6 +177,8 @@ class EveusbShell(eveusb.EventHandler):
 		print("{0} {1}".format("IN" if incoming else "OUT", msg))
 		if incoming and msg=="plugged_eol":
 			self.waitflag = False
+		elif incoming and msg=="shared_eol":
+			self.waitflag = False
 
 	def onVersion(self, version):
 		print("version '{0}'".format(version))
@@ -259,6 +262,7 @@ class EveusbShell(eveusb.EventHandler):
 		else:
 			print("{0} {1}, {2}".format(action, devname, name))
 
+	# do ls shared or unshared is show this
 	def onLocalSharedUnshared(self, dev, shared):
 		action = 'shared' if shared else 'unshared'
 		print("{0} {1}".format(action, dev))
@@ -269,6 +273,8 @@ class EveusbShell(eveusb.EventHandler):
 			shared_ports.append(thisown(dev))
 		elif not shared and found:
 			shared_ports.remove(dev)
+		# if cancel down this code is list one dev over
+		# self.waitflag=False
 
 	def onLocalAcquiredReleased(self, dev, acquired):
 		action = 'acquired' if acquired else 'released'
@@ -324,16 +330,13 @@ class EveusbShell(eveusb.EventHandler):
 
 	def wait(self, seconds):
 		"seconds is float, infinite if None"
-
 		self.waitflag = True	# init waitflag, start lock POLLIN
 		ret = None    #Don`t use to this codeblock
 		timeout = None if seconds is None else 1000*seconds # milliseconds, None -> infinite
 
 		while self.waitflag:
 			for fd, revent in self.poll.poll(timeout):
-
 				if revent & select.POLLIN: # file descriptor is also ready on EOF
-
 					err = self.ctl.onDataAvailable()
 
 					if not err:
@@ -446,13 +449,14 @@ class EveusbShell(eveusb.EventHandler):
 
 	def todols(self,arg):
 		self.do_ls(arg)
-		self.do_wait(0.050)
+		self.do_wait(0.100)
 
 	def help_ls(self):
 		print("ls <local|shared|remote|net>\tlist local, shared or remote USB ports on localhost"
 			" or shared USB ports on network")
 
 	def complete_ls(self, text, line, begidx, endidx):
+		print('this is complete')
 		# text == line[begidx:endidx]
 		cmd_idx = len("ls ")
 		choices = ("local", "shared", "remote", "net")
@@ -525,6 +529,10 @@ class EveusbShell(eveusb.EventHandler):
 	def do_share2(self,_ipstr,_portstr,_devnamestr):
 		dev = eveusb.Device(_ipstr,_portstr,_devnamestr)
 		return self.ctl.localShare(dev)
+
+	def show_ports(self):
+		print(shared_ports)
+		return shared_ports
 
 	def help_share(self):
 		print("share [reverse_host:]tcp_port devname [nickname encrypt compress password] or share <device>\n"
@@ -775,7 +783,10 @@ class EveusbShell(eveusb.EventHandler):
 		else:
 			self.help_license()
 			return self.stop_on_error
-			
+
+	def do_license2(self, rname, rcode):
+		return self.ctl.Register(rname, rcode)
+
 	def help_license(self):
 		print("license [name code]\tget or change license type")
 
